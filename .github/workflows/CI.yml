@@ -960,6 +960,17 @@ jobs:
     name: Windows
     runs-on: windows-2019
     needs: [setup_release]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - msystem: ucrt64
+            env: ucrt-x86_64
+            asset_arch: x86_64
+          - msystem: clangarm64
+            env: clang-aarch64
+            asset_arch: aarch64
+            toolchain: ./cmake/toolchains/aarch64-mingw-windows.cmake
 
     steps:
       - name: Checkout
@@ -1074,23 +1085,23 @@ jobs:
       - name: Setup Dependencies Windows
         uses: msys2/setup-msys2@v2
         with:
-          msystem: ucrt64
+          msystem: ${{ matrix.msystem }}
           update: true
           install: >-
             git
-            mingw-w64-ucrt-x86_64-boost
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-cppwinrt
-            mingw-w64-ucrt-x86_64-curl-winssl
-            mingw-w64-ucrt-x86_64-graphviz
-            mingw-w64-ucrt-x86_64-miniupnpc
-            mingw-w64-ucrt-x86_64-nlohmann-json
-            mingw-w64-ucrt-x86_64-nodejs
+            mingw-w64-${{ matrix.env }}-boost
+            mingw-w64-${{ matrix.env }}-cmake
+            mingw-w64-${{ matrix.env }}-cppwinrt
+            mingw-w64-${{ matrix.env }}-curl-winssl
+            mingw-w64-${{ matrix.env }}-graphviz
+            mingw-w64-${{ matrix.env }}-miniupnpc
+            mingw-w64-${{ matrix.env }}-nlohmann-json
+            mingw-w64-${{ matrix.env }}-nodejs
             mingw-w64-ucrt-x86_64-nsis
             mingw-w64-ucrt-x86_64-onevpl
-            mingw-w64-ucrt-x86_64-openssl
-            mingw-w64-ucrt-x86_64-opus
-            mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-${{ matrix.env }}-openssl
+            mingw-w64-${{ matrix.env }}-opus
+            mingw-w64-${{ matrix.env }}-toolchain
             wget
 
       - name: Install Doxygen
@@ -1149,6 +1160,7 @@ jobs:
             -S . \
             -DBUILD_WERROR=ON \
             -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_TOOLCHAIN_FILE=${{ matrix.toolchain }} \
             -DSUNSHINE_ASSETS_DIR=assets \
             -DSUNSHINE_PUBLISHER_NAME='${{ github.repository_owner }}' \
             -DSUNSHINE_PUBLISHER_WEBSITE='https://app.lizardbyte.dev' \
@@ -1167,8 +1179,8 @@ jobs:
           cpack -G ZIP
 
           # move
-          mv ./cpack_artifacts/Sunshine.exe ../artifacts/sunshine-windows-installer.exe
-          mv ./cpack_artifacts/Sunshine.zip ../artifacts/sunshine-windows-portable.zip
+          mv ./cpack_artifacts/Sunshine.exe ../artifacts/sunshine-windows-installer-${{ matrix.asset_arch }}.exe
+          mv ./cpack_artifacts/Sunshine.zip ../artifacts/sunshine-windows-portable-${{ matrix.asset_arch }}.zip
 
       - name: Run tests
         id: test
