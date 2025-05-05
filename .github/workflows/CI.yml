@@ -535,12 +535,6 @@ jobs:
           rm '/usr/local/bin/python3.13-config'
           brew install python
 
-      - name: Setup python
-        id: python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Configure formula
         run: |
           # variables for formula
@@ -621,7 +615,7 @@ jobs:
       - name: Validate Homebrew Formula
         id: test
         if: matrix.release != true
-        uses: LizardByte/homebrew-release-action@v2025.503.165455
+        uses: LizardByte/homebrew-release-action@v2025.506.15440
         with:
           formula_file: ${{ github.workspace }}/homebrew/sunshine.rb
           git_email: ${{ secrets.GH_BOT_EMAIL }}
@@ -630,26 +624,26 @@ jobs:
           token: ${{ secrets.GH_BOT_TOKEN }}
           validate: true
 
-      - name: Generate gcov report
-        id: test_report
-        # any except canceled or skipped
-        if: >-
-          always() &&
-          matrix.release != true &&
-          (steps.test.outcome == 'success' || steps.test.outcome == 'failure')
-        working-directory: ${{ steps.test.outputs.buildpath }}
+      - name: Debug upload gcda artifact
+        if: always() && matrix.release != true
+        uses: actions/upload-artifact@v4
+        with:
+          name: homebrew-gcda-${{ matrix.os_name }}-${{ matrix.os_version }}
+          path: ${{ steps.test.outputs.buildpath }}/build/tests/CMakeFiles/test_sunshine.dir/__/src/audio.cpp.gcda
+
+      - name: Debug homebrew buildpath
+        if: always() && matrix.release != true
         run: |
+          # print the build path
+          echo "Build path: ${{ steps.test.outputs.buildpath }}"
+          echo "contents:"
           ls -Ra
 
-          ${{ steps.python.outputs.python-path }} -m pip install gcovr
-          ${{ steps.python.outputs.python-path }} -m gcovr \
-            --exclude-noncode-lines \
-            --exclude-throw-branches \
-            --exclude-unreachable-branches \
-            --filter src/ \
-            --verbose \
-            --xml-pretty \
-            -o ${{ github.workspace }}/build/coverage.xml
+          # print the test path
+          echo "----"
+          echo "Test path: ${{ steps.test.outputs.testpath }}"
+          echo "contents:"
+          ls -Ra
 
       - name: Upload test results to Codecov
         # any except canceled or skipped
@@ -679,7 +673,7 @@ jobs:
         with:
           disable_search: true
           fail_ci_if_error: true
-          files: ./build/coverage.xml
+          files: ${{ steps.test.outputs.testpath }}/build/coverage.xml
           flags: ${{ matrix.os_name }}-${{ matrix.os_version }} (Homebrew)
           token: ${{ secrets.CODECOV_TOKEN }}
           verbose: true
